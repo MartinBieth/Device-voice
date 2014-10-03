@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Voice</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <script type="text/javascript" src="script/jquery.min.js"></script>
+    <style type="text/css">
+      section {
+        position: relative;
+        width: 100%;
+      }
+
+      .voiceContainer {
+        padding-top: 20px;
+        perspective: 300;
+      }
+
+    </style>
+  </head>
+  <body>
+
+    <section>
+      <h2>Voice capture</h2>
+      <div class="voiceContainer">
+
+      </div>
+      <strong class="clapContainer"></strong>
+    </section>
+
+    <script type="text/javascript" >
+      $(function () {
+        window.AudioContext = window.AudioContext || window.webkitAudioContext || window.mozAudioContext;
+        var audioContext = new AudioContext();
+        var analyserNode = audioContext.createAnalyser();
+
+        function getAverageVolume(array) {
+          var values = 0;
+          var average;
+
+          var length = array.length;
+
+          // get all the frequency amplitudes
+          for (var i = 0; i < length; i++) {
+              values += array[i];
+          }
+
+          average = values / length;
+          return average;
+        }
+
+        function gotStream(stream) {
+          analyserNode.smoothingTimeConstant = 0.3;
+          analyserNode.fftSize = 1024;
+
+          javascriptNode = audioContext.createScriptProcessor(2048, 1, 1);
+          javascriptNode.connect(audioContext.destination);
+
+          javascriptNode.onaudioprocess = function() {
+            var array =  new Uint8Array(analyserNode.frequencyBinCount);
+            analyserNode.getByteFrequencyData(array);
+            var average = getAverageVolume(array);
+            $('.voiceContainer').html(average);
+            if (average > 90) {
+              $('.clapContainer').html('CLAP !!');
+              window.setTimeout(function () {
+                $('.clapContainer').empty();
+              }, 3000);
+            }
+          }
+
+          var mediaStreamSource = audioContext.createMediaStreamSource( stream );
+          mediaStreamSource.connect(analyserNode);
+          //analyserNode.connect(audioContext.destination);
+          analyserNode.connect(javascriptNode);
+
+        }
+
+        navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedi;
+        navigator.getUserMedia( {audio:true}, gotStream, function (e) {console.log('ERROR', e);} );
+      });
+    </script>
+  </body>
+</html>
